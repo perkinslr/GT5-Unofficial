@@ -189,9 +189,9 @@ public class GT_MetaTileEntity_ProcessingArray extends GT_MetaTileEntity_MultiBl
                         break;
                     }
                 }
-
-                int max_multiplier = this.calculateOverclockedNess((byte) tTier, tRecipe.mEUt * i, tRecipe.mDuration);
-                int multiplier = 1;
+                int max_multiplier = this.calculateOverclockedNess((byte) tTier, tRecipe.mEUt, tRecipe.mDuration);
+                this.mEUt *= i;
+                int multiplier;
                 for (multiplier = i; multiplier < max_multiplier * i; multiplier++){
                     if (!tRecipe.isRecipeInputEqual(true, tFluids, tInputs)) {
                         break;
