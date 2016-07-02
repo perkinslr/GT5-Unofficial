@@ -25,12 +25,10 @@ import net.minecraftforge.fluids.FluidStack;
 
 import java.util.ArrayList;
 
-import org.apache.commons.lang3.ArrayUtils;
-
 import static gregtech.api.enums.GT_Values.V;
 
 public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
-
+    public static boolean new_overclocking;
     public static boolean disableMaintenance;
     public boolean mMachine = false, mWrench = false, mScrewdriver = false, mSoftHammer = false, mHardHammer = false, mSolderingTool = false, mCrowbar = false, mRunningOnLoad = false;
     public int mPollution = 0, mProgresstime = 0, mMaxProgresstime = 0, mEUt = 0, mEfficiencyIncrease = 0, mUpdate = 0, mStartUpCheck = 100, mRuntime = 0, mEfficiency = 0;
@@ -51,6 +49,7 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
 
     public GT_MetaTileEntity_MultiBlockBase(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional, 2);
+        this.new_overclocking = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "newOverclocking", false);
         this.disableMaintenance = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "MultiBlockMachines.disableMaintenance", false);
         this.damageFactorLow = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "MultiBlockMachines.damageFactorLow", 5);
         this.damageFactorHigh = (float) GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "MultiBlockMachines.damageFactorHigh", 0.6f);
@@ -59,6 +58,7 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
 
     public GT_MetaTileEntity_MultiBlockBase(String aName) {
         super(aName, 2);
+        this.new_overclocking = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "newOverclocking", false);
         this.disableMaintenance = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "MultiBlockMachines.disableMaintenance", false);
         this.damageFactorLow = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "MultiBlockMachines.damageFactorLow", 5);
         this.damageFactorHigh = (float) GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "MultiBlockMachines.damageFactorHigh", 0.6f);
@@ -810,4 +810,29 @@ public abstract class GT_MetaTileEntity_MultiBlockBase extends MetaTileEntity {
     public boolean allowPutStack(IGregTechTileEntity aBaseMetaTileEntity, int aIndex, byte aSide, ItemStack aStack) {
         return false;
     }
+
+    protected int calculateOverclockedNess(byte aTier, int aEU, int aDuration) {
+        if (!new_overclocking) {
+            if (aEU <= 16) {
+                mEUt = aEU * (1 << (aTier - 1)) * (1 << (aTier - 1));
+                mMaxProgresstime = aDuration / (1 << (aTier - 1));
+            } else {
+                mEUt = aEU;
+                mMaxProgresstime = aDuration;
+                while (mEUt <= V[aTier - 1]) {
+                    mEUt *= 4;
+                    mMaxProgresstime /= 2;
+                }
+            }
+            return 1;
+        }
+        int tier = GT_Utility.getTier(aEU);
+        int mult = Math.min(aTier - tier + 1, 10);
+        mEUt = (aEU * (1 + (mult - 1) * (1 - mult * 5 / 100))); // 5% efficiency boost per tier
+
+        mMaxProgresstime = aDuration;
+        return mult;
+    }
+
+
 }

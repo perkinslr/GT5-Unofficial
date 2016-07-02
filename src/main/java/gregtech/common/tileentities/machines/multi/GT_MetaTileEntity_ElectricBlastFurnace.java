@@ -16,7 +16,6 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class GT_MetaTileEntity_ElectricBlastFurnace
         extends GT_MetaTileEntity_MultiBlockBase {
@@ -84,7 +83,7 @@ public class GT_MetaTileEntity_ElectricBlastFurnace
                 }
             }
         }
-        ItemStack[] tInputs = (ItemStack[]) Arrays.copyOfRange(tInputList.toArray(new ItemStack[tInputList.size()]), 0, 2);
+        ItemStack[] tInputs = (ItemStack[]) tInputList.toArray(new ItemStack[tInputList.size()]);
 
         ArrayList<FluidStack> tFluidList = getStoredFluids();
         for (int i = 0; i < tFluidList.size() - 1; i++) {
@@ -99,7 +98,7 @@ public class GT_MetaTileEntity_ElectricBlastFurnace
                 }
             }
         }
-        FluidStack[] tFluids = (FluidStack[]) Arrays.copyOfRange(tFluidList.toArray(new FluidStack[tInputList.size()]), 0, 1);
+        FluidStack[] tFluids = (FluidStack[]) tFluidList.toArray(new FluidStack[tInputList.size()]);
         if (tInputList.size() > 0) {
             long tVoltage = getMaxInputVoltage();
             byte tTier = (byte) Math.max(1, GT_Utility.getTier(tVoltage));
@@ -107,15 +106,11 @@ public class GT_MetaTileEntity_ElectricBlastFurnace
             if ((tRecipe != null) && (this.mHeatingCapacity >= tRecipe.mSpecialValue) && (tRecipe.isRecipeInputEqual(true, tFluids, tInputs))) {
                 this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                 this.mEfficiencyIncrease = 10000;
-                if (tRecipe.mEUt <= 16) {
-                    this.mEUt = (tRecipe.mEUt * (1 << tTier - 1) * (1 << tTier - 1));
-                    this.mMaxProgresstime = (tRecipe.mDuration / (1 << tTier - 1));
-                } else {
-                    this.mEUt = tRecipe.mEUt;
-                    this.mMaxProgresstime = tRecipe.mDuration;
-                    while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                        this.mEUt *= 4;
-                        this.mMaxProgresstime /= 2;
+                int max_multiplier = this.calculateOverclockedNess(tTier, tRecipe.mEUt, tRecipe.mDuration);
+                int multiplier;
+                for (multiplier = 1; multiplier < max_multiplier; multiplier++) {
+                    if (!tRecipe.isRecipeInputEqual(true, tFluids, tInputs)) {
+                        break;
                     }
                 }
                 if (this.mEUt > 0) {
@@ -123,6 +118,12 @@ public class GT_MetaTileEntity_ElectricBlastFurnace
                 }
                 this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
                 this.mOutputItems = new ItemStack[]{tRecipe.getOutput(0), tRecipe.getOutput(1)};
+                if (this.mOutputItems[0]!=null) {
+                    this.mOutputItems[0].stackSize *= multiplier;
+                }
+                if (this.mOutputItems[1]!=null) {
+                    this.mOutputItems[1].stackSize *= multiplier;
+                }
                 updateSlots();
                 return true;
             }

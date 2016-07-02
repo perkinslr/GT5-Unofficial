@@ -86,8 +86,14 @@ public class GT_MetaTileEntity_MultiFurnace
                 this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                 this.mEfficiencyIncrease = 10000;
 
-                this.mEUt = (-4 * (1 << tTier - 1) * (1 << tTier - 1) * this.mLevel);
-                this.mMaxProgresstime = Math.max(1, 512 / (1 << tTier - 1));
+                if (new_overclocking) {
+                    int multiplier = this.calculateOverclockedNess(tTier, 4 * mLevel, 512);
+                    this.mMaxProgresstime /= multiplier;
+                }
+                else {
+                    this.mEUt = (-4 * (1 << tTier - 1) * (1 << tTier - 1) * this.mLevel);
+                    this.mMaxProgresstime = Math.max(1, 512 / (1 << tTier - 1));
+                }
             }
             updateSlots();
             return true;

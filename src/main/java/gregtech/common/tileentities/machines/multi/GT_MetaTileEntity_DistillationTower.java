@@ -1,10 +1,5 @@
 package gregtech.common.tileentities.machines.multi;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import org.apache.commons.lang3.ArrayUtils;
-
 import gregtech.api.GregTech_API;
 import gregtech.api.enums.Textures;
 import gregtech.api.gui.GT_GUIContainer_MultiMachine;
@@ -21,6 +16,10 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
+import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class GT_MetaTileEntity_DistillationTower
         extends GT_MetaTileEntity_MultiBlockBase {
@@ -96,26 +95,35 @@ public class GT_MetaTileEntity_DistillationTower
         	for(int i = 0;i<tFluids.length;i++){
             GT_Recipe tRecipe = GT_Recipe.GT_Recipe_Map.sDistillationRecipes.findRecipe(getBaseMetaTileEntity(), false, gregtech.api.enums.GT_Values.V[tTier], new FluidStack[]{tFluids[i]}, new ItemStack[]{});
             if (tRecipe != null) {
-                if (tRecipe.isRecipeInputEqual(true, tFluids, new ItemStack[]{})) {
+                ItemStack[] nullItemStack = new ItemStack[]{};
+                if (tRecipe.isRecipeInputEqual(true, tFluids, nullItemStack)) {
                     this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                     this.mEfficiencyIncrease = 10000;
-                    if (tRecipe.mEUt <= 16) {
-                        this.mEUt = (tRecipe.mEUt * (1 << tTier - 1) * (1 << tTier - 1));
-                        this.mMaxProgresstime = (tRecipe.mDuration / (1 << tTier - 1));
-                    } else {
-                        this.mEUt = tRecipe.mEUt;
-                        this.mMaxProgresstime = tRecipe.mDuration;
-                        while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                            this.mEUt *= 4;
-                            this.mMaxProgresstime /= 2;
+                    int max_multiplier = this.calculateOverclockedNess(tTier, tRecipe.mEUt, tRecipe.mDuration);
+                    int multiplier = 1;
+                    for (; multiplier < max_multiplier; multiplier++) {
+                        if (!tRecipe.isRecipeInputEqual(true, tFluids, nullItemStack)) {
+                            break;
                         }
                     }
+
+
+
+
                     if (this.mEUt > 0) {
                         this.mEUt = (-this.mEUt);
                     }
                     this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
                     this.mOutputItems = new ItemStack[]{tRecipe.getOutput(0)};
+                    if (this.mOutputItems[0]!=null) {
+                        this.mOutputItems[0].stackSize *= multiplier;
+                    }
                     this.mOutputFluids = tRecipe.mFluidOutputs.clone();
+                    for (int idx=0; idx<this.mOutputFluids.length; idx++){
+                        if (this.mOutputFluids[idx]!=null){
+                            this.mOutputFluids[idx].amount *= multiplier;
+                        }
+                    }
                     ArrayUtils.reverse(mOutputFluids);
                     updateSlots();
                     return true;

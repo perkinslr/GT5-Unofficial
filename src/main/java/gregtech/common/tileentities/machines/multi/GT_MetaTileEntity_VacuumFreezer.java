@@ -73,25 +73,27 @@ public class GT_MetaTileEntity_VacuumFreezer
 
             GT_Recipe tRecipe = GT_Recipe.GT_Recipe_Map.sVacuumRecipes.findRecipe(getBaseMetaTileEntity(), false, gregtech.api.enums.GT_Values.V[tTier], null, new ItemStack[]{tInput});
             if (tRecipe != null) {
-                if (tRecipe.isRecipeInputEqual(true, null, new ItemStack[]{tInput})) {
+                ItemStack[] inputs = new ItemStack[]{tInput};
+                if (tRecipe.isRecipeInputEqual(true, null, inputs)) {
                     this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                     this.mEfficiencyIncrease = 10000;
-                    if (tRecipe.mEUt <= 16) {
-                        this.mEUt = (tRecipe.mEUt * (1 << tTier - 1) * (1 << tTier - 1));
-                        this.mMaxProgresstime = (tRecipe.mDuration / (1 << tTier - 1));
-                    } else {
-                        this.mEUt = tRecipe.mEUt;
-                        this.mMaxProgresstime = tRecipe.mDuration;
-                        while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                            this.mEUt *= 4;
-                            this.mMaxProgresstime /= 2;
+                    int max_multiplier = this.calculateOverclockedNess(tTier, tRecipe.mEUt, tRecipe.mDuration);
+                    int multiplier;
+                    for (multiplier=1; multiplier<max_multiplier; multiplier++){
+                        if (!tRecipe.isRecipeInputEqual(true, null, inputs)) {
+                            break;
                         }
                     }
+
+
                     if (this.mEUt > 0) {
                         this.mEUt = (-this.mEUt);
                     }
                     this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
                     this.mOutputItems = new ItemStack[]{tRecipe.getOutput(0)};
+                    if (this.mOutputItems[0]!=null) {
+                        this.mOutputItems[0].stackSize *= multiplier;
+                    }
                     updateSlots();
                     return true;
                 }

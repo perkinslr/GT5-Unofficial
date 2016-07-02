@@ -386,6 +386,7 @@ public enum ItemList implements IItemContainer {
     Cover_Drain,
     Cover_Shutter,
     Cover_Crafting,
+    Cover_Overclocker,
     Cover_Screen,
     Cover_SolarPanel,
     Cover_SolarPanel_8V,

@@ -65,7 +65,9 @@ public class GT_MetaTileEntity_OilCracker extends GT_MetaTileEntity_MultiBlockBa
 
             GT_Recipe tRecipe = GT_Recipe.GT_Recipe_Map.sCrakingRecipes.findRecipe(getBaseMetaTileEntity(), false, gregtech.api.enums.GT_Values.V[tTier], new FluidStack[]{tInput}, new ItemStack[]{});
             if (tRecipe != null) {
-                if (tRecipe.isRecipeInputEqual(true, new FluidStack[]{tInput}, new ItemStack[]{})) {
+                FluidStack[] inputs = new FluidStack[]{tInput};
+                ItemStack[] nullItemStack = new ItemStack[]{};
+                if (tRecipe.isRecipeInputEqual(true, inputs, nullItemStack)) {
                     boolean steam = false;
                     boolean hydrogen = false;
                     for (FluidStack tInput2 : tInputList) {
@@ -83,17 +85,15 @@ public class GT_MetaTileEntity_OilCracker extends GT_MetaTileEntity_MultiBlockBa
 
                     this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                     this.mEfficiencyIncrease = 10000;
-                    if (tRecipe.mEUt <= 16) {
-                        this.mEUt = (tRecipe.mEUt * (1 << tTier - 1) * (1 << tTier - 1));
-                        this.mMaxProgresstime = (tRecipe.mDuration / (1 << tTier - 1));
-                    } else {
-                        this.mEUt = tRecipe.mEUt;
-                        this.mMaxProgresstime = tRecipe.mDuration;
-                        while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                            this.mEUt *= 4;
-                            this.mMaxProgresstime /= 2;
+
+                    int max_multiplier = this.calculateOverclockedNess(tTier, tRecipe.mEUt, tRecipe.mDuration);
+                    int multiplier;
+                    for (multiplier = 1; multiplier < max_multiplier; multiplier++) {
+                        if (!tRecipe.isRecipeInputEqual(true, inputs, nullItemStack)){
+                            break;
                         }
                     }
+
                     if (steam) this.mEUt = this.mEUt / 2;
                     if (this.mEUt > 0) {
                         this.mEUt = (-this.mEUt);
@@ -101,6 +101,11 @@ public class GT_MetaTileEntity_OilCracker extends GT_MetaTileEntity_MultiBlockBa
                     this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
                     this.mOutputFluids = new FluidStack[]{tRecipe.getFluidOutput(0)};
                     if (hydrogen) this.mOutputFluids[0].amount = this.mOutputFluids[0].amount * 130 / 100;
+
+                    if (this.mOutputFluids[0]!=null) {
+                        this.mOutputFluids[0].amount *= multiplier;
+                    }
+
                     return true;
                 }
             }

@@ -63,30 +63,38 @@ public class GT_MetaTileEntity_PyrolyseOven extends GT_MetaTileEntity_MultiBlock
             byte tTier = (byte) Math.max(1, GT_Utility.getTier(tVoltage));
             GT_Recipe tRecipe = GT_Recipe.GT_Recipe_Map.sPyrolyseRecipes.findRecipe(getBaseMetaTileEntity(), false, gregtech.api.enums.GT_Values.V[tTier], tFluidInputs.isEmpty() ? null : new FluidStack[]{tFluidInputs.get(0)}, new ItemStack[]{mInventory[1], tInput});
             if (tRecipe != null) {
-                if (tRecipe.isRecipeInputEqual(true, tFluidInputs.isEmpty() ? null : new FluidStack[]{tFluidInputs.get(0)}, new ItemStack[]{tInput, mInventory[1]})) {
+
+                FluidStack[] tFluids =  tFluidInputs.isEmpty() ? null : new FluidStack[]{tFluidInputs.get(0)};
+                ItemStack[] tItems = new ItemStack[]{tInput, mInventory[1]};
+
+                if (tRecipe.isRecipeInputEqual(true, tFluids, tItems)) {
                     this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                     this.mEfficiencyIncrease = 10000;
 
-                    this.mEUt = tRecipe.mEUt;
-                    this.mMaxProgresstime = tRecipe.mDuration;
-                    if (tRecipe.mEUt <= 16) {
-                        this.mEUt = (tRecipe.mEUt * (1 << tTier - 1) * (1 << tTier - 1));
-                        this.mMaxProgresstime = (tRecipe.mDuration / (1 << tTier - 1));
-                    } else {
-                        this.mEUt = tRecipe.mEUt;
-                        this.mMaxProgresstime = tRecipe.mDuration;
-                        while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                            this.mEUt *= 4;
-                            this.mMaxProgresstime /= 2;
+                    int max_multiplier = this.calculateOverclockedNess(tTier, tRecipe.mEUt, tRecipe.mDuration);
+                    int multiplier;
+                    for (multiplier=1; multiplier<max_multiplier; multiplier++){
+                        if (!tRecipe.isRecipeInputEqual(true, tFluids, tItems)) {
+                            break;
                         }
                     }
                     if (this.mEUt > 0) {
                         this.mEUt = (-this.mEUt);
                     }
                     this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
-                    if (tRecipe.mOutputs.length > 0) this.mOutputItems = new ItemStack[]{tRecipe.getOutput(0)};
-                    if (tRecipe.mFluidOutputs.length > 0)
+                    if (tRecipe.mOutputs.length > 0) {
+                        this.mOutputItems = new ItemStack[]{tRecipe.getOutput(0)};
+                        if (this.mOutputItems[0]!=null) {
+                            this.mOutputItems[0].stackSize *= multiplier;
+                        }
+                    }
+                    if (tRecipe.mFluidOutputs.length > 0) {
                         this.mOutputFluids = new FluidStack[]{tRecipe.getFluidOutput(0)};
+                        if (this.mOutputFluids[0]!=null) {
+                            this.mOutputFluids[0].amount *= multiplier;
+                        }
+                    }
+
                     updateSlots();
                     return true;
                 }

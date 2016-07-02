@@ -1,6 +1,7 @@
 package gregtech.api.metatileentity.implementations;
 
 import gregtech.api.GregTech_API;
+import gregtech.api.enums.ConfigCategories;
 import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Textures;
 import gregtech.api.gui.GT_Container_BasicMachine;
@@ -9,10 +10,12 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.objects.GT_ItemStack;
 import gregtech.api.objects.GT_RenderedTexture;
+import gregtech.api.util.GT_CoverBehavior;
 import gregtech.api.util.GT_OreDictUnificator;
 import gregtech.api.util.GT_Recipe;
 import gregtech.api.util.GT_Recipe.GT_Recipe_Map;
 import gregtech.api.util.GT_Utility;
+import gregtech.common.covers.GT_Cover_Overclocker;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
@@ -40,6 +43,7 @@ public abstract class GT_MetaTileEntity_BasicMachine extends GT_MetaTileEntity_B
             DID_NOT_FIND_RECIPE = 0,
             FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS = 1,
             FOUND_AND_SUCCESSFULLY_USED_RECIPE = 2;
+    public static boolean new_overclocking = GregTech_API.sMachineFile.get(ConfigCategories.machineconfig, "newOverclocking", false);
     private static final int OTHER_SLOT_COUNT = 4;
     public final ItemStack[] mOutputItems;
     public final int mInputSlotCount, mAmperage;
@@ -451,7 +455,7 @@ public abstract class GT_MetaTileEntity_BasicMachine extends GT_MetaTileEntity_B
 
             if (allowToCheckRecipe()) {
                 if (mMaxProgresstime <= 0 && aBaseMetaTileEntity.isAllowedToWork() && (tRemovedOutputFluid || tSucceeded || aBaseMetaTileEntity.hasInventoryBeenModified() || aTick % 600 == 0 || aBaseMetaTileEntity.hasWorkJustBeenEnabled()) && hasEnoughEnergyToCheckRecipe()) {
-                    if (checkRecipe() == 2) {
+                    if (checkRecipe() == FOUND_AND_SUCCESSFULLY_USED_RECIPE) {
                         if (mInventory[3] != null && mInventory[3].stackSize <= 0) mInventory[3] = null;
                         for (int i = getInputSlot(), j = i + mInputSlotCount; i < j; i++)
                             if (mInventory[i] != null && mInventory[i].stackSize <= 0) mInventory[i] = null;
@@ -510,22 +514,38 @@ public abstract class GT_MetaTileEntity_BasicMachine extends GT_MetaTileEntity_B
         return getBaseMetaTileEntity().decreaseStoredEnergyUnits(aEUt, false);
     }
 
-    protected void calculateOverclockedNess(GT_Recipe aRecipe) {
-        calculateOverclockedNess(aRecipe.mEUt, aRecipe.mDuration);
+    protected int calculateOverclockedNess(GT_Recipe aRecipe) {
+        return calculateOverclockedNess(aRecipe.mEUt, aRecipe.mDuration);
     }
 
-    protected void calculateOverclockedNess(int aEUt, int aDuration) {
-        if (aEUt <= 16) {
-            mEUt = aEUt * (1 << (mTier - 1)) * (1 << (mTier - 1));
-            mMaxProgresstime = aDuration / (1 << (mTier - 1));
-        } else {
-            mEUt = aEUt;
-            mMaxProgresstime = aDuration;
-            while (mEUt <= V[mTier - 1] * mAmperage) {
+    protected int calculateOverclockedNess(int aEUt, int aDuration) {
+        if (!new_overclocking) {
+            if (aEUt <= 16) {
+                mEUt = aEUt * (1 << (mTier - 1)) * (1 << (mTier - 1));
+                mMaxProgresstime = aDuration / (1 << (mTier - 1));
+            } else {
+                mEUt = aEUt;
+                mMaxProgresstime = aDuration;
+                while (mEUt <= V[mTier - 1] * mAmperage) {
+                    mEUt *= 4;
+                    mMaxProgresstime /= 2;
+                }
+            }
+            return 1;
+        }
+        int tier = GT_Utility.getTier(aEUt);
+        int mult = Math.min(mTier - tier + 1, 10);
+        mEUt = (aEUt * (1 + (mult - 1) * (1 - mult * 5 / 100))); // 5% efficiency boost per tier
+
+        mMaxProgresstime = aDuration;
+        for (byte i=0; i<6; i++){
+            GT_CoverBehavior cover = this.getBaseMetaTileEntity().getCoverBehaviorAtSide(i);
+            if (cover!=null && cover instanceof GT_Cover_Overclocker){
                 mEUt *= 4;
                 mMaxProgresstime /= 2;
             }
         }
+        return mult;
     }
 
     protected ItemStack getSpecialSlot() {
@@ -725,14 +745,37 @@ public abstract class GT_MetaTileEntity_BasicMachine extends GT_MetaTileEntity_B
             mOutputBlocked++;
             return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
         }
-        if (!tRecipe.isRecipeInputEqual(true, new FluidStack[]{getFillableStack()}, getAllInputs()))
+        ItemStack[] inputs = getAllInputs();
+        if (!tRecipe.isRecipeInputEqual(true, new FluidStack[]{getFillableStack()}, inputs))
             return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
 
+        int max_multiplier = calculateOverclockedNess(tRecipe);  // will always be 1 if newOverclocking is false
+        int multiplier;
+        for (multiplier = 1; multiplier < max_multiplier; multiplier++){
+            if (!tRecipe.isRecipeInputEqual(true, new FluidStack[]{getFillableStack()}, inputs)) {
+                break;
+            }
+        }
+        for (int i=0; i<mInventory.length; i++){
+            if (mInventory[i]!=null && mInventory[i].stackSize==0) {
+                mInventory[i] = null;
+            }
+        }
         for (int i = 0; i < mOutputItems.length; i++)
-            if (getBaseMetaTileEntity().getRandomNumber(10000) < tRecipe.getOutputChance(i))
-                mOutputItems[i] = tRecipe.getOutput(i);
+            for (int mult = 0; mult < multiplier; mult++)
+                if (getBaseMetaTileEntity().getRandomNumber(10000) < tRecipe.getOutputChance(i))
+                    if (mult==0) {
+                        mOutputItems[i] = tRecipe.getOutput(i);
+                    }
+                    else {
+                        if (mOutputItems[i]!=null){
+                            mOutputItems[i].stackSize += tRecipe.getOutput(i).stackSize;
+                        }
+                    }
         mOutputFluid = tRecipe.getFluidOutput(0);
-        calculateOverclockedNess(tRecipe);
+        if (mOutputFluid!=null){
+            mOutputFluid.amount *= multiplier;
+        }
         return FOUND_AND_SUCCESSFULLY_USED_RECIPE;
     }
 

@@ -9,7 +9,6 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.GT_MetaTileEntity_MultiBlockBase;
 import gregtech.api.objects.GT_RenderedTexture;
 import gregtech.api.util.GT_Recipe;
-import gregtech.api.util.GT_Utility;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -17,7 +16,6 @@ import net.minecraftforge.fluids.FluidStack;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class GT_MetaTileEntity_ProcessingArray extends GT_MetaTileEntity_MultiBlockBase {
@@ -168,12 +166,12 @@ public class GT_MetaTileEntity_ProcessingArray extends GT_MetaTileEntity_MultiBl
         if (mInventory[1].getUnlocalizedName().endsWith("5")) {
             tTier = 5;
         }
-        
+
         ItemStack[] tInputs = (ItemStack[]) tInputList.toArray(new ItemStack[tInputList.size()]);
 
         ArrayList<FluidStack> tFluidList = getStoredFluids();
-        
-        FluidStack[] tFluids = (FluidStack[]) tFluidList.toArray(new FluidStack[tFluidList.size()]); 
+
+        FluidStack[] tFluids = (FluidStack[]) tFluidList.toArray(new FluidStack[tFluidList.size()]);
         if (tInputList.size() > 0 || tFluids.length > 0) {
             GT_Recipe tRecipe = map.findRecipe(getBaseMetaTileEntity(), mLastRecipe, false, gregtech.api.enums.GT_Values.V[tTier], tFluids, tInputs);
             if (tRecipe != null) {
@@ -191,21 +189,18 @@ public class GT_MetaTileEntity_ProcessingArray extends GT_MetaTileEntity_MultiBl
                         break;
                     }
                 }
+
+                int max_multiplier = this.calculateOverclockedNess((byte) tTier, tRecipe.mEUt * i, tRecipe.mDuration);
+                int multiplier = 1;
+                for (multiplier = i; multiplier < max_multiplier * i; multiplier++){
+                    if (!tRecipe.isRecipeInputEqual(true, tFluids, tInputs)) {
+                        break;
+                    }
+                }
                 this.mMaxProgresstime = tRecipe.mDuration;
                 this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
                 this.mEfficiencyIncrease = 10000;
-                if (tRecipe.mEUt <= 16) {
-                    this.mEUt = (tRecipe.mEUt * (1 << tTier - 1) * (1 << tTier - 1));
-                    this.mMaxProgresstime = (tRecipe.mDuration / (1 << tTier - 1));
-                } else {
-                    this.mEUt = tRecipe.mEUt;
-                    this.mMaxProgresstime = tRecipe.mDuration;
-                    while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                        this.mEUt *= 4;
-                        this.mMaxProgresstime /= 2;
-                    }
-                }
-                this.mEUt *= i;
+
                 if (this.mEUt > 0) {
                     this.mEUt = (-this.mEUt);
                 }
@@ -214,19 +209,21 @@ public class GT_MetaTileEntity_ProcessingArray extends GT_MetaTileEntity_MultiBl
                     tOut[h] = tRecipe.getOutput(h).copy();
                     tOut[h].stackSize = 0;
                 }
-                FluidStack tFOut = null;
-                if (tRecipe.getFluidOutput(0) != null) tFOut = tRecipe.getFluidOutput(0).copy();
+
                 for (int f = 0; f < tOut.length; f++) {
                     if (tRecipe.mOutputs[f] != null && tOut[f] != null) {
-                        for (int g = 0; g < i; g++) {
+                        for (int g = 0; g < multiplier; g++) {
                             if (getBaseMetaTileEntity().getRandomNumber(10000) < tRecipe.getOutputChance(f))
                                 tOut[f].stackSize += tRecipe.mOutputs[f].stackSize;
                         }
                     }
                 }
+
+                FluidStack tFOut = null;
+                if (tRecipe.getFluidOutput(0) != null) tFOut = tRecipe.getFluidOutput(0).copy();
+
                 if (tFOut != null) {
-                    int tSize = tFOut.amount;
-                    tFOut.amount = tSize * i;
+                    tFOut.amount *= multiplier;
                 }
                 this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
                 List<ItemStack> overStacks = new ArrayList<ItemStack>();

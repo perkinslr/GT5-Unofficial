@@ -192,20 +192,11 @@ public class GT_MetaTileEntity_AdvMiner2 extends GT_MetaTileEntity_MultiBlockBas
         this.mEfficiencyIncrease = 10000;
         int tEU = 48;
         int tDuration = 24;
-        if (tEU <= 16) {
-            this.mEUt = (tEU * (1 << tTier - 1) * (1 << tTier - 1));
-            this.mMaxProgresstime = (tDuration / (1 << tTier - 1));
-        } else {
-            this.mEUt = tEU;
-            this.mMaxProgresstime = tDuration;
-            while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                this.mEUt *= 4;
-                this.mMaxProgresstime /= 2;
-            }
-        }
+        int multiplier = this.calculateOverclockedNess(tTier, tEU, tDuration);
         if (this.mEUt > 0) {
             this.mEUt = (-this.mEUt);
         }
+        this.mMaxProgresstime /= multiplier;
         this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
         return true;
     }

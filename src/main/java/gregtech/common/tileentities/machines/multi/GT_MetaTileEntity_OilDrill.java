@@ -93,23 +93,23 @@ public class GT_MetaTileEntity_OilDrill extends GT_MetaTileEntity_MultiBlockBase
         byte tTier = (byte) Math.max(1, GT_Utility.getTier(tVoltage));
         this.mEfficiency = (10000 - (getIdealStatus() - getRepairStatus()) * 1000);
         this.mEfficiencyIncrease = 10000;
-        int tEU = 24;
-        int tDuration = 160;
-        if (tEU <= 16) {
-            this.mEUt = (tEU * (1 << tTier - 1) * (1 << tTier - 1));
-            this.mMaxProgresstime = (tDuration / (1 << tTier - 1));
-        } else {
-            this.mEUt = tEU;
-            this.mMaxProgresstime = tDuration;
-            while (this.mEUt <= gregtech.api.enums.GT_Values.V[(tTier - 1)]) {
-                this.mEUt *= 4;
-                this.mMaxProgresstime /= 2;
+        int max_multiplier = this.calculateOverclockedNess(tTier, 24, 160);
+
+        int multiplier = 1;
+        for (; multiplier < max_multiplier; multiplier++){
+            FluidStack tmpFluid = GT_Utility.getUndergroundOil(getBaseMetaTileEntity().getWorld(), getBaseMetaTileEntity().getXCoord(), getBaseMetaTileEntity().getZCoord());
+            if (tmpFluid==null || tmpFluid.amount<5000){
+                break;
             }
+            tFluid.amount += tmpFluid.amount / 5000;
         }
-        if (this.mEUt > 0) {
-            this.mEUt = (-this.mEUt);
+
+
+        if (this.mEUt<0){
+            this.mEUt = -this.mEUt;
         }
-        this.mMaxProgresstime = Math.max(1, this.mMaxProgresstime);
+
+
         this.mOutputFluids = new FluidStack[]{tFluid};
         return true;
     }
