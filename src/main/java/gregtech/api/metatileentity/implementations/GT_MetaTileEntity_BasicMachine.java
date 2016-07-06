@@ -746,13 +746,29 @@ public abstract class GT_MetaTileEntity_BasicMachine extends GT_MetaTileEntity_B
             return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
         }
         ItemStack[] inputs = getAllInputs();
-        if (!tRecipe.isRecipeInputEqual(true, new FluidStack[]{getFillableStack()}, inputs))
+        FluidStack[] fluids = new FluidStack[]{getFillableStack()};
+        if (!tRecipe.isRecipeInputEqual(true, fluids, inputs))
             return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
 
         int max_multiplier = calculateOverclockedNess(tRecipe);  // will always be 1 if newOverclocking is false
+        GT_Recipe tmpRecipe = tRecipe.copy();
+        while (max_multiplier > 1) {
+            for (int i=0; i<tRecipe.mOutputs.length; i++){
+                if (tRecipe.mOutputs[i]!=null){
+                    tmpRecipe.mOutputs[i].stackSize = tRecipe.mOutputs[i].stackSize * max_multiplier;
+                }
+            }
+            if (tRecipe.mFluidOutputs.length > 0 && tRecipe.mFluidOutputs[0]!=null) {
+                tmpRecipe.mFluidOutputs[0].amount = tRecipe.mFluidOutputs[0].amount * max_multiplier;
+            }
+            if (canOutput(tmpRecipe)){
+                break;
+            }
+            max_multiplier--;
+        }
         int multiplier;
         for (multiplier = 1; multiplier < max_multiplier; multiplier++){
-            if (!tRecipe.isRecipeInputEqual(true, new FluidStack[]{getFillableStack()}, inputs)) {
+            if (!tRecipe.isRecipeInputEqual(true, fluids, inputs)) {
                 break;
             }
         }
